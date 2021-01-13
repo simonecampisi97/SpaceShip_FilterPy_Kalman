@@ -251,6 +251,6 @@ class SpaceAnimation:
         
         writer = PillowWriter(fps=25)  
         anim.save(path, writer=writer)
-
+        plt.close()
         with open(path,'rb') as f:
-            display(Image(data=f.read(), format='png'))
+            display(Image(data=f.read(), format='gif'))
