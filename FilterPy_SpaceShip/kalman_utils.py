@@ -96,7 +96,7 @@ def plot_planets(measurements,ax):
     legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
     legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
 
-    ax.legend([legend_earth, legend_moon],["Earth","Moon"])
+    ax.legend( [legend_earth, legend_moon], ["Earth","Moon"] )
 
 
 def save_tracking(predictions, measurements, folder_name):
@@ -246,11 +246,14 @@ class SpaceAnimation:
         return self.spaceship_pred, self.target,
     
     def save_and_visualize_animation(self, path):
-        
-        anim= FuncAnimation(fig=self.fig, func=self.animate, init_func=self.init,frames=len(self.x_pred),interval=50, blit=True)
+        import matplotlib
+
+        matplotlib.use('Agg')
+        anim= FuncAnimation(fig=self.fig, func=self.animate, 
+        init_func=self.init,frames=len(self.x_pred),interval=50, blit=True)
         
         writer = PillowWriter(fps=25)  
-        anim.save(path, writer=writer)
-        plt.close()
+        anim.save(path, writer=writer, dpi = 150)
+    
         with open(path,'rb') as f:
             display(Image(data=f.read(), format='gif'))
