@@ -251,9 +251,7 @@ class SpaceAnimation:
         return self.spaceship_pred, self.target,
     
     def save_and_visualize_animation(self, path):
-        import matplotlib
 
-        matplotlib.use('Agg')
         anim= FuncAnimation(fig=self.fig, func=self.animate, 
         init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
         
