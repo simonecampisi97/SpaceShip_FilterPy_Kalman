@@ -13,6 +13,8 @@ from scipy.linalg import block_diag
 from filterpy.stats import plot_covariance_ellipse
 from filterpy.common import Saver
 
+import time
+
 
 
 const_acceleration_x = 2
@@ -96,7 +98,7 @@ def plot_planets(measurements,ax):
     legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
     legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
 
-    ax.legend([legend_earth, legend_moon],["Earth","Moon"])
+    ax.legend( [legend_earth, legend_moon], ["Earth","Moon"] )
 
 
 def save_tracking(predictions, measurements, folder_name):
@@ -225,12 +227,14 @@ class SpaceAnimation:
         self.ax.add_patch(self.spaceship_pred)
         self.ax.add_patch(self.target)
 
-        legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-        legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
+       
         legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='o')
         
-        self.ax.legend([legend_earth, legend_moon, self.target, legend_pred],["Earth","Moon","Target","Prediction"])
-
+        self.ax.legend([legend_pred],["Prediction"])
+    
+        self.ax.text(-2,4,"Earth", weight='bold', c="b", fontsize=10)
+        self.ax.text(self.x_target[-1]-2, self.y_target[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
+        self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
         return self.spaceship_pred, self.target,
 
     
@@ -239,18 +243,20 @@ class SpaceAnimation:
         x, y = self.x_pred[i], self.y_pred[i]
 
         x_t, y_t = self.x_target[i], self.y_target[i]
+        self.target_text.remove()
+        self.target_text =  self.ax.text(x_t-3, y_t+3,"Target", weight='bold', c="green", fontsize=10)
 
         self.spaceship_pred.center=(x,y)
         self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
-
         return self.spaceship_pred, self.target,
     
     def save_and_visualize_animation(self, path):
-        
-        anim= FuncAnimation(fig=self.fig, func=self.animate, init_func=self.init,frames=len(self.x_pred),interval=50, blit=True)
+
+        anim= FuncAnimation(fig=self.fig, func=self.animate, 
+        init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
         
         writer = PillowWriter(fps=25)  
-        anim.save(path, writer=writer)
-
+        anim.save( path, writer=writer)
+    
         with open(path,'rb') as f:
-            display(Image(data=f.read(), format='png'))
+            display(Image(data=f.read(), format='gif'))
