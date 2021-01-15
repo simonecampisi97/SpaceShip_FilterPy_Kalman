@@ -1,20 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib import animation
+from matplotlib.patches import Ellipse
 from matplotlib.animation import FuncAnimation, PillowWriter
 import os
 from IPython.display import Image, display
 
+from covariance_ellipsoide import plot_covariance_ellipsoide
+
 
 from filterpy.kalman import KalmanFilter
 from filterpy.common import Q_discrete_white_noise
-from scipy.linalg import block_diag
-from filterpy.stats import plot_covariance_ellipse
 from filterpy.common import Saver
-
-import time
-
 
 
 const_acceleration_x = 2
@@ -27,6 +23,7 @@ traj = (2*(t**5)- 1.5*(t**4) + 0.05*(t**3) - 3*(t**2)+3*t)
 t= (t)*100
 traj= (traj)*100
 
+cov = []
 
 
 def init_global(const_acc_x, const_acc_y,dt_, t_, N_, traj_):
@@ -100,26 +97,20 @@ def plot_planets(measurements,ax):
 
     ax.legend( [legend_earth, legend_moon], ["Earth","Moon"] )
 
+def plot_prediction(predictions, measurements, ax):
 
-def save_tracking(predictions, measurements, folder_name):
-    
-    
-    plt.figure(figsize=(13,10))
-    
-    for x,y in zip(predictions[:,0],predictions[:,1]):
-        
-        plt.clf()
-        
-        plot_measurements(measurements)
-        
-        spaceship_pred = plt.Circle(( x, y), 3, color='red', label = "predicted spaceship")
-        plt.gca().add_artist(spaceship_pred)
-        plt.show()
-        
+    plot_measurements(measurements,ax)
+    ax.plot(predictions[:,0],predictions[:,1], c='r')
+
+    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
+    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
+    legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='_')
+    legend_trajectory = plt.Line2D([0], [0], ls='--', color="black")
+    ax.legend([legend_earth, legend_moon, legend_trajectory,legend_pred],["Earth","Moon","Noisy_Trajectory","Kalamn Prediction"])
 
 
 def init_kalman(measurements):
-    
+    global cov
     #Transition_Matrix matrix
     PHI =   np.array([[1, 0, dt, 0, (dt**2)/2, 0],
                      [0, 1, 0, dt, 0, (dt**2)/2],
@@ -136,22 +127,27 @@ def init_kalman(measurements):
 
 
     #initial state
-    init_states = np.array([measurements.x_pos[0], measurements.y_pos[0], 
-                  measurements.x_vel[0], measurements.y_vel[0], const_acceleration_x, const_acceleration_y ])
+    init_states = np.array([measurements.x_pos[0], measurements.y_pos[0], 0, 0, 0, 0 ])
 
+    P = np.eye(6)*500
+    cov=P
 
+    R = np.eye(2)* 0.001
 
-    acc_noise = (0.01)**2
+    #acc_noise = (0.01)**2
+    
+    """
     G = np.array([ [(dt**2)/2],
                     [(dt**2)/2],
                     [    dt   ],
                     [    dt   ],
                     [    1    ],
                     [    1    ]])
-
-    Q = np.dot(G, G.T)*acc_noise
+    """
+    Q = Q_discrete_white_noise(2, dt=dt, var=15, block_size=3) #np.dot(G, G.T)*acc_noise
     
-    return init_states, PHI, H, G, Q 
+
+    return init_states, PHI, H, Q, P, R
 
 
 
@@ -159,17 +155,17 @@ def Ship_tracker(measurements):
     
     global dt
 
-    init_states, PHI, H, G, Q = init_kalman(measurements)
+    init_states, PHI, H, Q, P,R = init_kalman(measurements)
     
     tracker= KalmanFilter(dim_x = 6, dim_z=2)
     tracker.x = init_states
 
     tracker.F = PHI
     tracker.H = H   # Measurement function
-    tracker.P = np.eye(6)*500   # covariance matrix
-    tracker.R = np.eye(2)* 0.001  # state uncertainty
-    q = Q_discrete_white_noise(2, dt=dt, var=15, block_size=3)
-    tracker.Q =  q # process uncertainty
+    tracker.P = P   # covariance matrix
+    tracker.R = R  # state uncertainty
+    
+    tracker.Q =  Q # process uncertainty
     
     return tracker
 
@@ -188,6 +184,15 @@ def run(tracker, zs):
     return np.array(preds), np.array(cov)
 
 
+def plot_comparison_ellipse_covariance(preds, cov):
+
+    i=0
+    ellipse_step = 50
+    for x, P in zip(preds, cov):
+        mean, covariance = x[0:2], P[0:2,0:2]
+        if i % ellipse_step == 0:
+            plot_covariance_ellipsoide(mean=mean, cov=covariance, fc='g', std=3, alpha=0.5)
+        i+=1
 class SpaceAnimation:
     
     """
@@ -197,17 +202,20 @@ class SpaceAnimation:
     :target_y: target y of the position 
     
     """
-    def __init__(self, predictions, measurements, target_x, target_y):
+    def __init__(self, predictions, measurements, cov = None):
         
-        self.x_target = target_x
-        self.y_target = target_y
+
+        self.predictions= predictions
+
+        self.x_target = measurements.x_pos.to_list()
+        self.y_target = measurements.y_pos.to_list()
 
         self.x_pred = predictions[:,0]
         self.y_pred = predictions[:,1]
 
         self.fig =  plt.figure(figsize=(13,10))
         self.ax = self.fig.add_subplot(1,1,1)
-        self.ax.set( xlim=(-9, np.max(self.x_pred)+9), ylim=(-10, np.max(self.y_pred)+9 ) )
+        self.ax.set( xlim=(-9, np.max(self.x_pred)+4), ylim=(-9, np.max(self.y_pred)+4 ) )
         
         plot_planets(measurements, self.ax)
         
@@ -218,6 +226,15 @@ class SpaceAnimation:
         self.patch_height = 4.6
         self.target = plt.Rectangle((0-(self.patch_width/2),0-(self.patch_height/2)), self.patch_width, self.patch_height,
                                             linewidth=2,edgecolor='green',facecolor='none') 
+        
+        # Covariance Ellipsoide
+        if cov is not None:
+            self.cov= cov
+            self.fig_cov = plt.figure(figsize=(13,10))
+            self.ax_cov = self.fig_cov.add_subplot(1,1,1)
+            self.ax_cov.set( xlim=(-9, np.max(self.x_pred)+4), ylim=(-9, np.max(self.y_pred)+4 ) )
+            self.covariance_ellipse = None
+
        
     
     def init(self):
@@ -250,13 +267,49 @@ class SpaceAnimation:
         self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
         return self.spaceship_pred, self.target,
     
+
+    def init_cov(self):
+        
+        e = plot_covariance_ellipsoide(mean=(0,0), cov=np.eye(2)*500, std=3, ax=self.ax)
+
+        return e,
+
+    def animate_covariace_ellipsoide(self,i):
+        
+        
+        x, P = self.predictions[i][:2], self.cov[i][:2][:2]
+        ellipse = plot_covariance_ellipsoide(mean=x, cov=P, ax=self.ax_cov, ec='k', ls='dashed')
+
+        if ellipse is None:
+            raise Exception(" 'ellipse' not present, set the std parameter")
+
+        return ellipse,
+    
+
+    def save_anim_cov(self, path):
+        
+        anim_ellipse = FuncAnimation(fig=self.fig_cov, func=self.animate_covariace_ellipsoide, 
+        init_func=self.init_cov,frames=len(self.x_target),interval=50, blit=True)
+        
+        writer_ellipse = PillowWriter(fps=25)
+        anim_ellipse.save(path, writer=writer_ellipse, dpi=100)
+        plt.close()
+    
+        with open(path,'rb') as f:
+            display(Image(data=f.read(), format='gif'))
+
+
     def save_and_visualize_animation(self, path):
 
+
+        
         anim= FuncAnimation(fig=self.fig, func=self.animate, 
         init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
         
+    
         writer = PillowWriter(fps=25)  
-        anim.save( path, writer=writer)
+        anim.save( path, writer=writer, dpi=100)
+        plt.close()
     
         with open(path,'rb') as f:
             display(Image(data=f.read(), format='gif'))
