@@ -184,15 +184,38 @@ def run(tracker, zs):
     return np.array(preds), np.array(cov)
 
 
-def plot_comparison_ellipse_covariance(preds, cov):
+def plot_comparison_ellipse_covariance(measurements, preds, cov):
+
+
+    fig_cov = plt.figure(figsize=(13,10))
+
+    ax_cov =  fig_cov.add_subplot(1,1,1)
+
+    plot_planets(measurements, ax_cov)
+
+
+    ellipse_step = 50
 
     i=0
-    ellipse_step = 50
-    for x, P in zip(preds, cov):
+    for x, P, x_pos, y_pos in zip(preds, cov, measurements.x_pos, measurements.y_pos):
         mean, covariance = x[0:2], P[0:2,0:2]
         if i % ellipse_step == 0:
-            plot_covariance_ellipsoide(mean=mean, cov=covariance, fc='g', std=3, alpha=0.5)
+            plot_covariance_ellipsoide(mean=mean, ax=ax_cov, std=205, cov=covariance, fc='g', alpha=0.3, ls='dashed')
+            ax_cov.scatter(x_pos, y_pos, edgecolor='k', facecolor='none', lw=2)
         i+=1
+    
+    ax_cov.plot(preds[:,0], preds[:,1], label='filter', c='b')
+
+    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
+    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
+    legend_pred = plt.Line2D([0], [0], ls='None', color="b", marker='_')
+    legend_ellipse = plt.Line2D([0], [0], ls='--', c="g", alpha=0.3, marker='o')
+    legend_measures = plt.Line2D([0], [0] ,ls='None', c="black", marker='o')
+    ax_cov.legend([legend_earth, legend_moon, legend_ellipse,legend_pred, legend_measures],["Earth","Moon","Ellipse","Kalamn Filter","Measurments"])
+    
+    ax_cov.set_title("Covariance Ellipsoide vs Measurments vs Kalman Filter")
+    
+
 class SpaceAnimation:
     
     """
@@ -202,7 +225,7 @@ class SpaceAnimation:
     :target_y: target y of the position 
     
     """
-    def __init__(self, predictions, measurements, cov = None):
+    def __init__(self, predictions, measurements):
         
 
         self.predictions= predictions
@@ -226,15 +249,6 @@ class SpaceAnimation:
         self.patch_height = 4.6
         self.target = plt.Rectangle((0-(self.patch_width/2),0-(self.patch_height/2)), self.patch_width, self.patch_height,
                                             linewidth=2,edgecolor='green',facecolor='none') 
-        
-        # Covariance Ellipsoide
-        if cov is not None:
-            self.cov= cov
-            self.fig_cov = plt.figure(figsize=(13,10))
-            self.ax_cov = self.fig_cov.add_subplot(1,1,1)
-            self.ax_cov.set( xlim=(-9, np.max(self.x_pred)+4), ylim=(-9, np.max(self.y_pred)+4 ) )
-            self.covariance_ellipse = None
-
        
     
     def init(self):
@@ -268,41 +282,8 @@ class SpaceAnimation:
         return self.spaceship_pred, self.target,
     
 
-    def init_cov(self):
-        
-        e = plot_covariance_ellipsoide(mean=(0,0), cov=np.eye(2)*500, std=3, ax=self.ax)
-
-        return e,
-
-    def animate_covariace_ellipsoide(self,i):
-        
-        
-        x, P = self.predictions[i][:2], self.cov[i][:2][:2]
-        ellipse = plot_covariance_ellipsoide(mean=x, cov=P, ax=self.ax_cov, ec='k', ls='dashed')
-
-        if ellipse is None:
-            raise Exception(" 'ellipse' not present, set the std parameter")
-
-        return ellipse,
-    
-
-    def save_anim_cov(self, path):
-        
-        anim_ellipse = FuncAnimation(fig=self.fig_cov, func=self.animate_covariace_ellipsoide, 
-        init_func=self.init_cov,frames=len(self.x_target),interval=50, blit=True)
-        
-        writer_ellipse = PillowWriter(fps=25)
-        anim_ellipse.save(path, writer=writer_ellipse, dpi=100)
-        plt.close()
-    
-        with open(path,'rb') as f:
-            display(Image(data=f.read(), format='gif'))
-
-
     def save_and_visualize_animation(self, path):
 
-
-        
         anim= FuncAnimation(fig=self.fig, func=self.animate, 
         init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
         

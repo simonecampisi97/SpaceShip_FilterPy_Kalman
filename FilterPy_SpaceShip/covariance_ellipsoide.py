@@ -73,7 +73,7 @@ def plot_covariance_ellipsoide(
         show_semiaxis=False, show_center=True,
         fc='none', ec='#004080',
         alpha=1.0,
-        ls='solid'):
+        ls='solid', plot=True):
 
     from matplotlib.patches import Ellipse
 
@@ -97,22 +97,23 @@ def plot_covariance_ellipsoide(
                     edgecolor=ec,
                     alpha=alpha,
                     lw=2, ls=ls)
-        ax.add_patch(e)
+        if plot == True:
+            ax.add_patch(e)
     
    
     x, y = mean
     
-    if show_center:
+    if show_center and plot:
         ax.scatter(x, y, marker='+', color=ec)
 
-    if show_semiaxis:
+    if show_semiaxis and plot:
         a = ellipse[0]
         h, w = height/4, width/4
         ax.plot([x, x+ h*np.cos(a+np.pi/2)], [y, y + h*np.sin(a+np.pi/2)])
         ax.plot([x, x+ w*np.cos(a)], [y, y + w*np.sin(a)])
     
     if std is not None:
-        return e
+        return e, angle, width, height
     else:
         return None
     
