@@ -8,7 +8,7 @@ from matplotlib.legend_handler import HandlerPatch, HandlerCircleCollection
 import os
 from IPython.display import Image, display
 
-from covariance_ellipsoide import plot_covariance_ellipsoide
+from model_evaluation import plot_covariance_ellipsoide
 
 
 from filterpy.kalman import KalmanFilter
@@ -112,6 +112,22 @@ def plot_prediction(predictions, measurements, ax):
     ax.legend([legend_earth, legend_moon, legend_trajectory,legend_pred],["Earth","Moon","Noisy_Trajectory","Kalamn Prediction"])
 
 
+
+def plot_residual_limits(Ps, stds=1.):
+    """ plots standand deviation given in Ps as a yellow shaded region. One std
+    by default, use stds for a different choice (e.g. stds=3 for 3 standard
+    deviations.
+    """
+
+    std = np.sqrt(Ps) * stds
+
+    plt.plot(-std, color='k', ls=':', lw=2)
+    plt.plot(std, color='k', ls=':', lw=2)
+    plt.fill_between(range(len(std)), -std, std,
+                 facecolor='#ffff00', alpha=0.3)
+
+
+
 def init_kalman(measurements):
     global cov
     #Transition_Matrix matrix
@@ -147,7 +163,7 @@ def init_kalman(measurements):
                     [    1    ],
                     [    1    ]])
     """
-    Q = Q_discrete_white_noise(2, dt=dt, var=15, block_size=3) #np.dot(G, G.T)*acc_noise
+    Q = Q_discrete_white_noise(2, dt=dt, var=13, block_size=3) #np.dot(G, G.T)*acc_noise
     
 
     return init_states, PHI, H, Q, P, R
