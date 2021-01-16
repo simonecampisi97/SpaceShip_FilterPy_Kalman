@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.animation import FuncAnimation, PillowWriter
+import matplotlib.patches as mpatches
+from matplotlib.legend_handler import HandlerPatch, HandlerCircleCollection
+
 import os
 from IPython.display import Image, display
 
@@ -183,25 +186,34 @@ def run(tracker, zs):
     
     return np.array(preds), np.array(cov)
 
+class HandlerEllipse(HandlerPatch):
+    
+    def create_artists(self, legend, orig_handle,
+                       xdescent, ydescent, width, height, fontsize, trans):
+        
+        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
+        
+        p = mpatches.Ellipse(xy=center, width=orig_handle.width,
+                                        height=orig_handle.height)
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
 
 def plot_comparison_ellipse_covariance(measurements, preds, cov):
 
-
     fig_cov = plt.figure(figsize=(13,10))
-
     ax_cov =  fig_cov.add_subplot(1,1,1)
-
-    plot_planets(measurements, ax_cov)
-
-
     ellipse_step = 50
-
+    
+    plot_planets(measurements, ax_cov)
+    
     i=0
     for x, P, x_pos, y_pos in zip(preds, cov, measurements.x_pos, measurements.y_pos):
         mean, covariance = x[0:2], P[0:2,0:2]
         if i % ellipse_step == 0:
-            plot_covariance_ellipsoide(mean=mean, ax=ax_cov, std=205, cov=covariance, fc='g', alpha=0.3, ls='dashed')
-            ax_cov.scatter(x_pos, y_pos, edgecolor='k', facecolor='none', lw=2)
+            e,_,_,_=plot_covariance_ellipsoide(mean=mean, ax=ax_cov, std=205, cov=covariance, fc='g', alpha=0.3, ls='dashed')
+            scatter = ax_cov.scatter(x_pos, y_pos, edgecolor='k', facecolor='none', lw=2)
         i+=1
     
     ax_cov.plot(preds[:,0], preds[:,1], label='filter', c='b')
@@ -209,11 +221,12 @@ def plot_comparison_ellipse_covariance(measurements, preds, cov):
     legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
     legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
     legend_pred = plt.Line2D([0], [0], ls='None', color="b", marker='_')
-    legend_ellipse = plt.Line2D([0], [0], ls='--', c="g", alpha=0.3, marker='o')
-    legend_measures = plt.Line2D([0], [0] ,ls='None', c="black", marker='o')
-    ax_cov.legend([legend_earth, legend_moon, legend_ellipse,legend_pred, legend_measures],["Earth","Moon","Ellipse","Kalamn Filter","Measurments"])
-    
+    legend_ellipse = mpatches.Ellipse((), width=15, height=5, facecolor="g", alpha=0.3, ls='dashed')
+    ax_cov.legend([legend_earth, legend_moon, legend_ellipse,legend_pred, scatter],["Earth","Moon","Ellipse","Kalamn Filter","Measurments"],
+                    handler_map={mpatches.Ellipse: HandlerEllipse()}, loc='best')
+    ax_cov.grid()
     ax_cov.set_title("Covariance Ellipsoide vs Measurments vs Kalman Filter")
+    fig_cov.savefig(os.path.join("Plots","covariance_ellipsoide.png"), dpi=100)
     
 
 class SpaceAnimation:
