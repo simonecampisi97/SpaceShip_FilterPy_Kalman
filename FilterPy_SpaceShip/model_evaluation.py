@@ -116,3 +116,14 @@ def plot_covariance_ellipsoide(
     else:
         return None
     
+
+
+def plot_residuals(t, measurements, measurements_col, col, predictions, kind_of_residual=""):
+    
+    residual = measurements[measurements_col] - predictions[:,col]
+    
+    plt.plot(t, residual)
+    plt.xlim((t[0], t[-1]))
+    plt.xlabel('t')
+    plt.ylabel(r'$z - \hat{z}$')
+    plt.title(r"Residuals for " + kind_of_residual+ ": $\mu = {:2.3f}$ $\sigma^2 = {:2.3f}$".format(np.mean(residual), np.var(residual)))

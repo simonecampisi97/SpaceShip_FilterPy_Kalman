@@ -54,10 +54,10 @@ def get_x_y_velocities():
         
         noise = np.random.normal(loc = mu, scale = sigma)
         
-        x_velocities[i] = ( t[i] - (t[i-1]+ (1/2)*const_acceleration_x*dt**2)) + noise
-        y_velocities[i] = ( traj[i] - (traj[i-1]+ (1/2)*const_acceleration_y*dt**2)) + noise
+        x_velocities[i] = ( t[i] - (t[i-1]+ (1/2)*const_acceleration_x*dt**2))/dt + noise
+        y_velocities[i] = ( traj[i] - (traj[i-1]+ (1/2)*const_acceleration_y*dt**2))/dt + noise
     
-    return x_velocities, y_velocities
+    return x_velocities, y_velocities, const_acceleration_x, const_acceleration_y
 
 
 def plot_measurements(measurements,ax):
@@ -75,8 +75,7 @@ def plot_measurements(measurements,ax):
     moon  = plt.Circle((x_moon, y_moon ), 1.5, color='grey', label = "Moon")
     ax.add_patch(earth)
     ax.add_patch(moon)
-    #moon = ax.gca().add_artist(moon)
-    #earth = ax.gca().add_artist(earth)
+
     
     legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
     legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
@@ -128,8 +127,8 @@ def plot_residual_limits(Ps, stds=1.):
 
 
 
-def init_kalman(measurements):
-    global cov
+def init_kalman(measurements, sigma=0.3):
+    global cov, const_acceleration_x, const_acceleration_y
     #Transition_Matrix matrix
     PHI =   np.array([[1, 0, dt, 0, (dt**2)/2, 0],
                      [0, 1, 0, dt, 0, (dt**2)/2],
@@ -142,20 +141,20 @@ def init_kalman(measurements):
     # Matrix Observation_Matrix
     #We are looking for the position of the spaceship
     H = np.array([[1,0,0,0,0,0],
-                 [0,1,0,0,0,0]])
+                  [0,1,0,0,0,0]])
 
 
     #initial state
-    init_states = np.array([measurements.x_pos[0], measurements.y_pos[0], 0, 0, 0, 0 ])
+    init_states = np.array([measurements.x_pos[0], measurements.y_pos[0], 0, 0, const_acceleration_x, const_acceleration_y])
 
-    P = np.eye(6)*500
+    P = np.eye(6)*(sigma**2)
     cov=P
 
-    R = np.eye(2)* 0.001
+    R = np.eye(2)* (0.001)
 
-    #acc_noise = (0.01)**2
+    #acc_noise = (0.1)**2
     
-    """
+    """ 
     G = np.array([ [(dt**2)/2],
                     [(dt**2)/2],
                     [    dt   ],
@@ -163,18 +162,18 @@ def init_kalman(measurements):
                     [    1    ],
                     [    1    ]])
     """
-    Q = Q_discrete_white_noise(2, dt=dt, var=13, block_size=3) #np.dot(G, G.T)*acc_noise
-    
+    Q = Q_discrete_white_noise(2, dt=dt, var=10, block_size=3) 
+    #Q= np.dot(G, G.T)*(0.3)**2
 
     return init_states, PHI, H, Q, P, R
 
 
 
-def Ship_tracker(measurements):
+def Ship_tracker(measurements,sigma=0.3):
     
     global dt
 
-    init_states, PHI, H, Q, P,R = init_kalman(measurements)
+    init_states, PHI, H, Q, P,R = init_kalman(measurements,sigma)
     
     tracker= KalmanFilter(dim_x = 6, dim_z=2)
     tracker.x = init_states
@@ -192,8 +191,8 @@ def Ship_tracker(measurements):
 def run(tracker, zs):
     
     preds, cov = [],[]
+    
     for z in zs:
-        
         tracker.predict()
         tracker.update(z=z)
         
@@ -201,6 +200,9 @@ def run(tracker, zs):
         cov.append(tracker.P)
     
     return np.array(preds), np.array(cov)
+
+
+
 
 class HandlerEllipse(HandlerPatch):
     
