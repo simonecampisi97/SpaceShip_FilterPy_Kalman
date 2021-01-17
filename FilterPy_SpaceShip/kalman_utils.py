@@ -47,15 +47,11 @@ def get_x_y_velocities():
     x_velocities = np.zeros(len(t))
     y_velocities = np.zeros(len(t))
     np.random.seed(25)
-    sigma = 0.4
-    mu = 0 
-    
+  
     for i in range(1,len(t)) :
         
-        noise = np.random.normal(loc = mu, scale = sigma)
-        
-        x_velocities[i] = ( t[i] - (t[i-1]+ (1/2)*const_acceleration_x*dt**2))/dt + noise
-        y_velocities[i] = ( traj[i] - (traj[i-1]+ (1/2)*const_acceleration_y*dt**2))/dt + noise
+        x_velocities[i] = ( t[i] - (t[i-1]+ (1/2)*const_acceleration_x*dt**2))/dt 
+        y_velocities[i] = ( traj[i] - (traj[i-1]+ (1/2)*const_acceleration_y*dt**2))/dt
     
     return x_velocities, y_velocities, const_acceleration_x, const_acceleration_y
 
@@ -71,16 +67,15 @@ def plot_measurements(measurements,ax):
     ax.plot(measurements.x_pos, measurements.y_pos, ls = "--",c='black', label = "Target Trajectoy")
     
     ax.set_title("Target Trajectory", fontsize=15)
-    earth = plt.Circle(( x_earth, y_earth), 3, color='blue', label = "Earth")
-    moon  = plt.Circle((x_moon, y_moon ), 1.5, color='grey', label = "Moon")
+    earth = plt.Circle(( x_earth, y_earth), 3, color='blue')
+    moon  = plt.Circle((x_moon, y_moon ), 1.5, color='grey')
     ax.add_patch(earth)
     ax.add_patch(moon)
 
-    
-    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
-    legend_trajectory = plt.Line2D([0], [0], ls='--', color="black")
-    ax.legend([legend_earth, legend_moon, legend_trajectory],["Earth","Moon","Target_Trajectory"])
+    #legend_trajectory = plt.Line2D([0], [0], ls='--', color="black")
+    ax.text(-2,-5,"Earth", weight='bold', c="b", fontsize=10)
+    ax.text(measurements.x_pos.to_list()[-1]-2, measurements.y_pos.to_list()[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
+    ax.legend()
 
 
 def plot_planets(measurements,ax):
@@ -94,21 +89,16 @@ def plot_planets(measurements,ax):
     ax.add_patch(earth)
     ax.add_patch(moon)
 
-    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
+    ax.text(-2,-5,"Earth", weight='bold', c="b", fontsize=10)
+    ax.text(measurements.x_pos.to_list()[-1]-2, measurements.y_pos.to_list()[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
 
-    ax.legend( [legend_earth, legend_moon], ["Earth","Moon"] )
+
 
 def plot_prediction(predictions, measurements, ax):
 
     plot_measurements(measurements,ax)
-    ax.plot(predictions[:,0],predictions[:,1], c='r')
-
-    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
-    legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='_')
-    legend_trajectory = plt.Line2D([0], [0], ls='--', color="black")
-    ax.legend([legend_earth, legend_moon, legend_trajectory,legend_pred],["Earth","Moon","Noisy_Trajectory","Kalamn Prediction"])
+    ax.plot(predictions[:,0],predictions[:,1], c='r', label='Kalman Prediction')
+    ax.legend()
 
 
 
@@ -194,6 +184,7 @@ def run(tracker, zs):
     
     for z in zs:
         tracker.predict()
+        tracker.predict()
         tracker.update(z=z)
         
         preds.append(tracker.x)
@@ -201,6 +192,71 @@ def run(tracker, zs):
     
     return np.array(preds), np.array(cov)
 
+def run_half_measures(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    for i,z in enumerate(zs):
+        tracker.predict()
+        
+        if i  <= len(zs)//2:
+            tracker.update(z=z)
+       
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
+
+
+
+def run_even_index_update(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    for i, z in enumerate(zs):
+        
+        tracker.predict()
+        
+        if( i  % 2 == 0):
+            tracker.update(z=z)
+        
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
+
+
+def run_update_every_5(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    for i, z in enumerate(zs):
+        
+        tracker.predict()
+        
+        if( i  % 5 == 0):
+            tracker.update(z=z)
+        
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
+
+def run_update_hole_in_middle(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    chunk = len(zs) // 3
+    for i, z in enumerate(zs):
+        
+        tracker.predict()
+        if i <= chunk or i >= 2*chunk:
+            tracker.update(z=z)
+        
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
 
 
 
@@ -294,8 +350,6 @@ class SpaceAnimation:
         
         self.ax.legend([legend_pred],["Prediction"])
     
-        self.ax.text(-2,4,"Earth", weight='bold', c="b", fontsize=10)
-        self.ax.text(self.x_target[-1]-2, self.y_target[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
         self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
         return self.spaceship_pred, self.target,
 
