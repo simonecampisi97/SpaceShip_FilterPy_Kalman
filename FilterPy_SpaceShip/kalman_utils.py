@@ -73,7 +73,7 @@ def plot_measurements(measurements,ax):
     ax.add_patch(moon)
 
     #legend_trajectory = plt.Line2D([0], [0], ls='--', color="black")
-    ax.text(-2,-4,"Earth", weight='bold', c="b", fontsize=10)
+    ax.text(-2,-5,"Earth", weight='bold', c="b", fontsize=10)
     ax.text(measurements.x_pos.to_list()[-1]-2, measurements.y_pos.to_list()[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
     ax.legend()
 
@@ -89,7 +89,7 @@ def plot_planets(measurements,ax):
     ax.add_patch(earth)
     ax.add_patch(moon)
 
-    ax.text(-2,-4,"Earth", weight='bold', c="b", fontsize=10)
+    ax.text(-2,-5,"Earth", weight='bold', c="b", fontsize=10)
     ax.text(measurements.x_pos.to_list()[-1]-2, measurements.y_pos.to_list()[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
 
 
@@ -184,12 +184,29 @@ def run(tracker, zs):
     
     for z in zs:
         tracker.predict()
+        tracker.predict()
         tracker.update(z=z)
         
         preds.append(tracker.x)
         cov.append(tracker.P)
     
     return np.array(preds), np.array(cov)
+
+def run_half_measures(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    for i,z in enumerate(zs):
+        tracker.predict()
+        
+        if i  <= len(zs)//2:
+            tracker.update(z=z)
+       
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
+
 
 
 def run_even_index_update(tracker, zs):
@@ -218,6 +235,22 @@ def run_update_every_5(tracker, zs):
         tracker.predict()
         
         if( i  % 5 == 0):
+            tracker.update(z=z)
+        
+        preds.append(tracker.x)
+        cov.append(tracker.P)
+    
+    return np.array(preds), np.array(cov)
+
+def run_update_hole_in_middle(tracker, zs):
+    
+    preds, cov = [],[]
+    
+    chunk = len(zs) // 3
+    for i, z in enumerate(zs):
+        
+        tracker.predict()
+        if i <= chunk or i >= 2*chunk:
             tracker.update(z=z)
         
         preds.append(tracker.x)
