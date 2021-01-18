@@ -148,7 +148,7 @@ def plot_measurements_3D(traj, ax, title=""):
     plot_planets(x, y, z, ax)
     
     
-    ax.scatter(x, y, z, c='green', alpha=0.3)
+    ax.scatter(x, y, z, c='gray', alpha=0.5, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -164,7 +164,7 @@ def plot_measurements_3D(traj, ax, title=""):
     ax.set_xlim(mean_x - max_range, mean_x + max_range)
     ax.set_ylim(mean_y - max_range, mean_y + max_range)
     ax.set_zlim(mean_z - max_range, mean_z + max_range)
-
+    ax.legend(loc='best',prop={'size':15})
 
 def plot_prediction(preds,traj, ax):
     global SIGMA
@@ -181,7 +181,7 @@ def plot_prediction(preds,traj, ax):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.legend()
+    ax.legend(loc='best',prop={'size':15})
     ax.set_title("Kalman Filter Estimate - Sigma={}".format(SIGMA), fontsize=15)
 
 
@@ -206,10 +206,10 @@ def plot_x_z_2D(ax, traj, preds):
     Xm, Ym, Zm = traj.get_measurements()
 
     ax.plot(xt,zt, label='Kalman Filter Estimate')
-    ax.scatter(Xm,Zm, label='Measurement', c='gray', s=30)
+    ax.scatter(Xm,Zm, label='Measurement', c='gray', s=15, alpha=0.5)
     ax.plot(Xr, Zr, label='Real')
     ax.set_title("Kalman Filter Estimate 2D - Sigma={}".format(SIGMA), fontsize=15)
-    ax.legend(loc='best',prop={'size':22})
+    ax.legend(loc='best',prop={'size':15})
 
     ax.set_xlabel('X ($m$)')
     ax.set_ylabel('Y ($m$)')
@@ -287,8 +287,7 @@ def Ship_tracker(traj):
 
 def run(tracker, traj):
     
-    x, y, z = traj.get_measurements()
-    
+    x, y, z = traj.get_measurements() 
     zs = np.asarray([ x, y, z]).T
    
     preds, cov = [],[]
@@ -305,7 +304,6 @@ def run(tracker, traj):
 def run_half_measures(tracker, traj):
     
     x, y, z = traj.get_measurements()
-    
     zs = np.asarray([ x, y, z]).T
     
     preds, cov = [],[]
@@ -323,8 +321,11 @@ def run_half_measures(tracker, traj):
 
 
 
-def run_even_index_update(tracker, zs):
+def run_even_index_update(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
+
     preds, cov = [],[]
     
     for i, z in enumerate(zs):
