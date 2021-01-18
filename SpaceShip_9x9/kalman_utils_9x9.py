@@ -116,14 +116,14 @@ def plot_measurements_3D(traj, ax, title=""):
 
 
 
-def plot_prediction(preds,traj):
-    
+def plot_prediction(preds,traj, ax):
+    global SIGMA
+
     xt, yt, zt = preds[:,0], preds[:,1], preds[:,2]
     Xr, Yr, Zr = traj.get_trajectory_position()
     Xm, Ym, Zm = traj.get_measurements()
 
-    fig = plt.figure(figsize=(16,13))
-    ax = fig.add_subplot(111, projection='3d')
+    
     ax.plot(xt,yt,zt, lw=2, label='Kalman Filter Estimate')
     ax.plot(Xr, Yr, Zr, lw=2, label='Real Trajectory Without Noise')
     ax.scatter(Xm, Ym, Zm, edgecolor='g', facecolor='none', alpha=0.1, lw=2, label="Measurements")
@@ -131,6 +131,7 @@ def plot_prediction(preds,traj):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.legend()
+    ax.set_title("Kalman Filter Estimate - Sigma={}".format(SIGMA), fontsize=15)
 
 
     # Axis equal
