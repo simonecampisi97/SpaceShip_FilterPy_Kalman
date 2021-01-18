@@ -17,25 +17,24 @@ from filterpy.common import Q_discrete_white_noise
 from filterpy.common import Saver
 
 
-const_acceleration_x = 2
-const_acceleration_y = 1
-dt= 0.01
-t= np.arange(0, 1.01, dt)
-N = len(t)
-traj = (2*(t**5)- 1.5*(t**4) + 0.05*(t**3) - 3*(t**2)+3*t)
 
-t= (t)*100
-traj= (traj)*100
-
-cov = []
-
+DT= 0.01
+SIGMA=0.5
 
 class Trajectoy3DGenerattion:
 
     def __init__(self,sigma=0.5, T=10.0, fs=100.0):
+        
+        
+        global DT,SIGMA
 
         self.fs = fs # Sampling Frequency
         self.dt = 1.0/fs
+        
+        # Set Global Variables
+        DT = self.dt
+        SIGMA = 0.5
+        
         self.T =  T # measuremnt time
         self.m = int(self.T/self.dt) # number of measurements
         self.sigma = sigma
@@ -117,69 +116,94 @@ def plot_measurements_3D(traj, ax, title=""):
 
 
 
-def init_global(const_acc_x, const_acc_y,dt_, t_, N_, traj_):
+def plot_prediction(preds,traj):
     
-    global const_acceleration_x, const_acceleration_y,dt, t, N, traj
+    xt, yt, zt = preds[:,0], preds[:,1], preds[:,2]
+    Xr, Yr, Zr = traj.get_trajectory_position()
+    Xm, Ym, Zm = traj.get_measurements()
 
-    const_acceleration_x, const_acceleration_y = const_acc_x, const_acc_y
-    dt, N, traj, t = dt_, N_, traj_, t_
+    fig = plt.figure(figsize=(16,13))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(xt,yt,zt, lw=2, label='Kalman Filter Estimate')
+    ax.plot(Xr, Yr, Zr, lw=2, label='Real Trajectory Without Noise')
+    ax.scatter(Xm, Ym, Zm, edgecolor='g', facecolor='none', alpha=0.1, lw=2, label="Measurements")
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.legend()
+
+
+    # Axis equal
+    max_range = np.array([Xm.max()-Xm.min(), Ym.max()-Ym.min(), Zm.max()-Zm.min()]).max() / 3.0
+    mean_x = Xm.mean()
+    mean_y = Ym.mean()
+    mean_z = Zm.mean()
+    ax.set_xlim(mean_x - max_range, mean_x + max_range)
+    ax.set_ylim(mean_y - max_range, mean_y + max_range)
+    ax.set_zlim(mean_z - max_range, mean_z + max_range)
 
 
 
+#-------------------------- KALMAN FUNCTIONS -------------------------------------------------
 
-#-------------------------- KALMAN FUNCTION -------------------------------------------------
+def init_kalman(traj):
+    
+    global SIGMA, DT
 
-def init_kalman(measurements, sigma=0.3):
-   
     #Transition_Matrix matrix
-    PHI =   np.matrix([[1.0, 0.0, 0.0, dt, 0.0, 0.0, 1/2.0*dt**2, 0.0, 0.0],
-                       [0.0, 1.0, 0.0, 0.0,  dt, 0.0, 0.0, 1/2.0*dt**2, 0.0],
-                       [0.0, 0.0, 1.0, 0.0, 0.0,  dt, 0.0, 0.0, 1/2.0*dt**2],
-                       [0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  dt, 0.0, 0.0],
-                       [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  dt, 0.0],
-                       [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  dt],
+    PHI =   np.array([[1.0, 0.0, 0.0, DT, 0.0, 0.0, 1/2.0*DT**2, 0.0, 0.0],
+                       [0.0, 1.0, 0.0, 0.0,  DT, 0.0, 0.0, 1/2.0*DT**2, 0.0],
+                       [0.0, 0.0, 1.0, 0.0, 0.0,  DT, 0.0, 0.0, 1/2.0*DT**2],
+                       [0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  DT, 0.0, 0.0],
+                       [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  DT, 0.0],
+                       [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  DT],
                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
 
     # Matrix Observation_Matrix
-    #We are looking for the position of the spaceship
-    H = np.array([[1,0,0,0,0,0],
-                  [0,1,0,0,0,0]])
+    #We are looking for the position of the spaceship x,y,z
+    H = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
 
+    x, y, z = traj.get_measurements()
 
     #initial state
-    init_states = np.array([measurements.x_pos[0], measurements.y_pos[0], 0, 0, const_acceleration_x, const_acceleration_y])
+    init_states = np.array([x[0], y[0], z[0], 100., 0., 0., 0., 0., -9.81])
 
-    P = np.eye(6)*(sigma**2)
-    cov=P
-
-    R = np.eye(2)* (0.001)
+    P = np.eye(9)*(SIGMA**2)
+   
+    rp = 1.0**2  # Noise of Position Measurement
+    R = np.eye(3)* rp
 
     #acc_noise = (0.1)**2
     
-    """ 
-    G = np.array([ [(dt**2)/2],
-                    [(dt**2)/2],
-                    [    dt   ],
-                    [    dt   ],
+    G = np.array([  [(DT**2)/2],
+                    [(DT**2)/2],
+                    [(DT**2)/2],
+                    [    DT   ],
+                    [    DT   ],
+                    [    DT   ],
+                    [    1    ],
                     [    1    ],
                     [    1    ]])
-    """
-    Q = Q_discrete_white_noise(2, dt=dt, var=10, block_size=3) 
-    #Q= np.dot(G, G.T)*(0.3)**2
+
+    #Q = Q_discrete_white_noise(2, dt=DT, var=10, block_size=3) 
+    acc_noise = 0.1 # acceleration proccess noise
+    Q= np.dot(G, G.T)* acc_noise
 
     return init_states, PHI, H, Q, P, R
 
 
 
-def Ship_tracker(measurements,sigma=0.3):
+def Ship_tracker(traj):
     
-    global dt
+    global DT
 
-    init_states, PHI, H, Q, P,R = init_kalman(measurements,sigma)
+    init_states, PHI, H, Q, P,R = init_kalman(traj)
     
-    tracker= KalmanFilter(dim_x = 6, dim_z=2)
+    tracker= KalmanFilter(dim_x = 9, dim_z=3)
     tracker.x = init_states
 
     tracker.F = PHI
@@ -192,12 +216,15 @@ def Ship_tracker(measurements,sigma=0.3):
     return tracker
 
 
-def run(tracker, zs):
+def run(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    
+    zs = np.asarray([ x, y, z]).T
+   
     preds, cov = [],[]
     
     for z in zs:
-        tracker.predict()
         tracker.predict()
         tracker.update(z=z)
         
