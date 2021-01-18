@@ -116,29 +116,13 @@ class Trajectoy3DGenerattion:
         return self.Xm, self.Ym, self.Zm
 
 
-def plot_sphere(r, xc, yc, zc, ax):
-    
-  
-    # Make data
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    
-    x = r * np.outer(np.cos(u), np.sin(v)) + xc
-    y = r * np.outer(np.sin(u), np.sin(v)) + yc
-    z = r * np.outer(np.ones(np.size(u)), np.cos(v)) + zc
-
-    # Plot the surface Sphere
-    ax.plot_surface(x, y, z, color='b')
-    plt.show()
-
-
-
 def plot_planets(x, y, z, ax):
     ax.scatter(x[0], y[0], z[0], c='b', s=850, facecolor='b')
     ax.scatter(x[-1], y[-1], z[-1], c='gray', s=350, facecolor='b')
-    ax.text(x[0]-3, y[0], z[0]-8.5,"Earth", weight='bold', c="b", fontsize=10)
-    ax.text(x[-1]-4, y[-1], z[-1]+4,"Moon", weight='bold', c="gray", fontsize=10)
+    e_txt = ax.text(x[0]-3, y[0], z[0]-8.5,"Earth", weight='bold', c="b", fontsize=10)
+    m_txt = ax.text(x[-1]-4, y[-1], z[-1]+4,"Moon", weight='bold', c="gray", fontsize=10)
 
+    return e_txt, m_txt
 
 
 def plot_measurements_3D(traj, ax, title=""):
@@ -254,9 +238,9 @@ def init_kalman(traj):
                     [    DT   ],
                     [    DT   ],
                     [    DT   ],
-                    [    1.    ],
-                    [    1.    ],
-                    [    1.    ]])
+                    [    1.   ],
+                    [    1.   ],
+                    [    1.   ]])
 
     acc_noise = 0.1 # acceleration proccess noise
     Q= np.dot(G, G.T)* acc_noise**2
@@ -341,8 +325,10 @@ def run_even_index_update(tracker, traj):
     return np.array(preds), np.array(cov)
 
 
-def run_update_every_5(tracker, zs):
+def run_update_every_5(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
     preds, cov = [],[]
     
     for i, z in enumerate(zs):
@@ -357,8 +343,10 @@ def run_update_every_5(tracker, zs):
     
     return np.array(preds), np.array(cov)
 
-def run_update_hole_in_middle(tracker, zs):
+def run_update_hole_in_middle(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
     preds, cov = [],[]
     
     chunk = len(zs) // 3
@@ -375,50 +363,7 @@ def run_update_hole_in_middle(tracker, zs):
 
 
 
-class HandlerEllipse(HandlerPatch):
-    
-    def create_artists(self, legend, orig_handle,
-                       xdescent, ydescent, width, height, fontsize, trans):
-        
-        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
-        
-        p = mpatches.Ellipse(xy=center, width=orig_handle.width,
-                                        height=orig_handle.height)
-        self.update_prop(p, orig_handle, legend)
-        p.set_transform(trans)
-        return [p]
-
-
-def plot_comparison_ellipse_covariance(measurements, preds, cov):
-
-    fig_cov = plt.figure(figsize=(13,10))
-    ax_cov =  fig_cov.add_subplot(1,1,1)
-    ellipse_step = 50
-    
-    plot_planets(measurements, ax_cov)
-    
-    i=0
-    for x, P, x_pos, y_pos in zip(preds, cov, measurements.x_pos, measurements.y_pos):
-        mean, covariance = x[0:2], P[0:2,0:2]
-        if i % ellipse_step == 0:
-            e,_,_,_=plot_covariance_ellipsoide(mean=mean, ax=ax_cov, std=205, cov=covariance, fc='g', alpha=0.3, ls='dashed')
-            scatter = ax_cov.scatter(x_pos, y_pos, edgecolor='k', facecolor='none', lw=2)
-        i+=1
-    
-    ax_cov.plot(preds[:,0], preds[:,1], label='filter', c='b')
-
-    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
-    legend_pred = plt.Line2D([0], [0], ls='None', color="b", marker='_')
-    legend_ellipse = mpatches.Ellipse((), width=15, height=5, facecolor="g", alpha=0.3, ls='dashed')
-    ax_cov.legend([legend_earth, legend_moon, legend_ellipse,legend_pred, scatter],["Earth","Moon","Ellipse","Kalamn Filter","Measurments"],
-                    handler_map={mpatches.Ellipse: HandlerEllipse()}, loc='best')
-    ax_cov.grid()
-    ax_cov.set_title("Covariance Ellipsoide vs Measurments vs Kalman Filter")
-    fig_cov.savefig(os.path.join("Plots","covariance_ellipsoide.png"), dpi=100)
-    
-
-class SpaceAnimation:
+class SpaceAnimation3D:
     
     """
     :predictions: matrix with the predictions of the states
@@ -427,65 +372,73 @@ class SpaceAnimation:
     :target_y: target y of the position 
     
     """
-    def __init__(self, predictions, measurements):
+    def __init__(self, predictions, traj):
         
 
         self.predictions= predictions
 
-        self.x_target = measurements.x_pos.to_list()
-        self.y_target = measurements.y_pos.to_list()
+        self.x_target, self.y_target, self.z_target = traj.get_measurements()  
 
         self.x_pred = predictions[:,0]
         self.y_pred = predictions[:,1]
+        self.z_pred = predictions[:,2]
+        self.zs = np.asarray([ self.x_pred, self.y_pred, self.z_pred]).T
+        
+        self.fig =  plt.figure(figsize=(16,13))
+        self.ax = self.fig.add_subplot(1,1,1, projection="3d")
+    
 
-        self.fig =  plt.figure(figsize=(13,10))
-        self.ax = self.fig.add_subplot(1,1,1)
-        self.ax.set( xlim=(-9, np.max(self.x_pred)+4), ylim=(-9, np.max(self.y_pred)+4 ) )
+        Xr, Yr, Zr = traj.get_trajectory_position()
+     
+        e_txt, m_txt = plot_planets(Xr,Yr,Zr, self.ax)
+        e_txt.remove()
+        m_txt.remove()
+        self.ax.text(Xr[0]-3, Yr[0], Zr[0]-4,"Earth", weight='bold', c="b", fontsize=10)
+        self.ax.text(Xr[-1]-4, Yr[-1], Zr[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
         
-        plot_planets(measurements, self.ax)
-        
-        self.spaceship_pred = plt.Circle((0., 0.), 2, fc='r')
+        self.spaceship_pred = None
 
         #create a patch for the target
+        """
         self.patch_width = 4.6
         self.patch_height = 4.6
         self.target = plt.Rectangle((0-(self.patch_width/2),0-(self.patch_height/2)), self.patch_width, self.patch_height,
                                             linewidth=2,edgecolor='green',facecolor='none') 
-       
+        """
     
     def init(self):
         
-        self.spaceship_pred.center = (0 - (self.patch_width/2), 0 - (self.patch_height/2) )
-        self.target.set_xy( (0,0) )
-        self.ax.add_patch(self.spaceship_pred)
-        self.ax.add_patch(self.target)
+        self.spaceship_pred = self.ax.scatter(self.x_pred[0], self.y_pred[0], self.z_pred[0], c='gray', s=250, facecolor='r')
+        #self.target.set_xy( (0,0) )
+        #self.ax.add_patch(self.spaceship_pred)
+        #self.ax.add_patch(self.target)
 
        
-        legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='o')
+        #legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='o')
         
-        self.ax.legend([legend_pred],["Prediction"])
+        #self.ax.legend([legend_pred],["Prediction"])
     
-        self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
-        return self.spaceship_pred, self.target,
+        #self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
+        return self.spaceship_pred,
 
     
     def animate(self,i):
         
-        x, y = self.x_pred[i], self.y_pred[i]
+        #x, y = self.x_pred[i], self.y_pred[i]
 
-        x_t, y_t = self.x_target[i], self.y_target[i]
-        self.target_text.remove()
-        self.target_text =  self.ax.text(x_t-3, y_t+3,"Target", weight='bold', c="green", fontsize=10)
+        #x_t, y_t = self.x_target[i], self.y_target[i]
+        #self.target_text.remove()
+        #self.target_text =  self.ax.text(x_t-3, y_t+3,"Target", weight='bold', c="green", fontsize=10)
 
-        self.spaceship_pred.center=(x,y)
-        self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
-        return self.spaceship_pred, self.target,
+        self.spaceship_pred._offsets3d=(self.predictions[i][0],self.predictions[i][1],self.predictions[i][2])
+        #self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
+        return self.spaceship_pred,
     
 
     def save_and_visualize_animation(self, path):
 
         anim= FuncAnimation(fig=self.fig, func=self.animate, 
-        init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
+        init_func=self.init, frames=50,interval=50, blit=True)
         
     
         writer = PillowWriter(fps=25)  
