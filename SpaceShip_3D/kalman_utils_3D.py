@@ -43,7 +43,7 @@ class Trajectoy3DGenerattion:
         self.py= 0.0 # y Position Start
         self.pz= 1.0 # z Position Start
 
-        self.vx = 100.0  # m/s Velocity at the beginning
+        self.vx = 10.0  # m/s Velocity at the beginning
         self.vy = 0.0 # m/s Velocity
         self.vz = 0.0 # m/s Velocity
 
@@ -57,9 +57,13 @@ class Trajectoy3DGenerattion:
         self.Vy=[]
         self.Vz=[]
         
+        self.ax =[]
+        self.az =[]
+
         for i in range(int(self.m)):
             
-            accx = -c*self.vx**2  # Drag Resistance
+            # Just to simulate a trajectory
+            accx = -c*self.vx**2  
             
             self.vx += accx*self.dt
             self.px += self.vx*self.dt
@@ -75,20 +79,41 @@ class Trajectoy3DGenerattion:
             self.Vx.append(self.vx)
             self.Vy.append(self.vy)
             self.Vz.append(self.vz)
-    
-        
-    def get_trajectory_position(self):
-        return np.flip(self.Xr), np.flip(self.Yr), np.flip(self.Zr)
 
+            self.az.append(accz)
+            self.ax.append(accx)
+    
+        aux = self.Xr
+        self.Xr = self.Zr
+        self.Zr = aux
+
+        aux = self.Vx
+        self.Vx = self.Vz
+        self.Vz = aux
+
+        aux = self.ax
+        self.ax = self.az
+        self.az = aux
+
+
+    def get_velocities(self):
+        return self.Vx, self.Vy, self.Vz
+
+    def get_trajectory_position(self):
+        return self.Xr, self.Yr, self.Zr
+
+    def get_acceleration(self):
+        return self.ax, self.az
     
     def get_measurements(self):
 
         #adding Noise
+        np.random.seed(25)
         self.Xm = self.Xr + self.sigma * (np.random.randn(self.m))
         self.Ym = self.Yr + self.sigma * (np.random.randn(self.m))
         self.Zm = self.Zr + self.sigma * (np.random.randn(self.m)) 
         
-        return np.flip(self.Xm), np.flip(self.Ym), np.flip(self.Zm)
+        return self.Xm, self.Ym, self.Zm
 
 
 def plot_sphere(r, xc, yc, zc, ax):
@@ -127,7 +152,7 @@ def plot_measurements_3D(traj, ax, title=""):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title(title)
+    ax.set_title(title, fontsize=15)
 
     #ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     # Axis equal
@@ -171,6 +196,24 @@ def plot_prediction(preds,traj, ax):
 
 
 
+
+def plot_x_z_2D(ax, traj, preds):
+    
+    global SIGMA
+
+    xt, yt, zt = preds[:,0], preds[:,1], preds[:,2]
+    Xr, Yr, Zr = traj.get_trajectory_position()
+    Xm, Ym, Zm = traj.get_measurements()
+
+    ax.plot(xt,zt, label='Kalman Filter Estimate')
+    ax.scatter(Xm,Zm, label='Measurement', c='gray', s=30)
+    ax.plot(Xr, Zr, label='Real')
+    ax.set_title("Kalman Filter Estimate 2D - Sigma={}".format(SIGMA), fontsize=15)
+    ax.legend(loc='best',prop={'size':22})
+
+    ax.set_xlabel('X ($m$)')
+    ax.set_ylabel('Y ($m$)')
+
 #-------------------------- KALMAN FUNCTIONS -------------------------------------------------
 
 def init_kalman(traj):
@@ -195,13 +238,14 @@ def init_kalman(traj):
                   [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
 
     x, y, z = traj.get_measurements()
-
+    vx, vy, vz = traj.get_velocities()
+    ax, az = traj.get_acceleration()
     #initial state
-    init_states = np.array([x[0], y[0], z[0], 100., 0., 0., 0., 0., -9.81])
+    init_states = np.array([x[0], y[0], z[0], vx[0], vy[0], vz[0], ax[0], 0., az[0]])
 
     P = np.eye(9)*(SIGMA**2)
    
-    rp = 0.001  # Noise of Position Measurement
+    rp = 1**2  # Noise of Position Measurement
     R = np.eye(3)* rp
     
     G = np.array([  [(DT**2)/2],
@@ -210,13 +254,13 @@ def init_kalman(traj):
                     [    DT   ],
                     [    DT   ],
                     [    DT   ],
-                    [    1    ],
-                    [    1    ],
-                    [    1    ]])
+                    [    1.    ],
+                    [    1.    ],
+                    [    1.    ]])
 
     acc_noise = 0.1 # acceleration proccess noise
-    Q= np.dot(G, G.T)* acc_noise
-    #Q = Q_discrete_white_noise(3, dt=DT, var=10, block_size=3) 
+    Q= np.dot(G, G.T)* acc_noise**2
+    #Q = Q_discrete_white_noise(3, dt=DT, var=50, block_size=3) 
 
     return init_states, PHI, H, Q, P, R
 
