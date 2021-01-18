@@ -78,7 +78,7 @@ class Trajectoy3DGenerattion:
     
         
     def get_trajectory_position(self):
-        return self.Xr, self.Yr, self.Zr
+        return np.flip(self.Xr), np.flip(self.Yr), np.flip(self.Zr)
 
     
     def get_measurements(self):
@@ -88,7 +88,31 @@ class Trajectoy3DGenerattion:
         self.Ym = self.Yr + self.sigma * (np.random.randn(self.m))
         self.Zm = self.Zr + self.sigma * (np.random.randn(self.m)) 
         
-        return self.Xm, self.Ym, self.Zm
+        return np.flip(self.Xm), np.flip(self.Ym), np.flip(self.Zm)
+
+
+def plot_sphere(r, xc, yc, zc, ax):
+    
+  
+    # Make data
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    
+    x = r * np.outer(np.cos(u), np.sin(v)) + xc
+    y = r * np.outer(np.sin(u), np.sin(v)) + yc
+    z = r * np.outer(np.ones(np.size(u)), np.cos(v)) + zc
+
+    # Plot the surface Sphere
+    ax.plot_surface(x, y, z, color='b')
+    plt.show()
+
+
+
+def plot_planets(x, y, z, ax):
+    ax.scatter(x[0], y[0], z[0], c='b', s=850, facecolor='b')
+    ax.scatter(x[-1], y[-1], z[-1], c='gray', s=350, facecolor='b')
+    ax.text(x[0]-3, y[0], z[0]-8.5,"Earth", weight='bold', c="b", fontsize=10)
+    ax.text(x[-1]-4, y[-1], z[-1]+4,"Moon", weight='bold', c="gray", fontsize=10)
 
 
 
@@ -96,8 +120,10 @@ def plot_measurements_3D(traj, ax, title=""):
     
     x,y,z = traj.get_measurements()
     
+    plot_planets(x, y, z, ax)
     
-    ax.scatter(x, y, z, c='gray')
+    
+    ax.scatter(x, y, z, c='green', alpha=0.3)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -115,7 +141,6 @@ def plot_measurements_3D(traj, ax, title=""):
     ax.set_zlim(mean_z - max_range, mean_z + max_range)
 
 
-
 def plot_prediction(preds,traj, ax):
     global SIGMA
 
@@ -123,7 +148,8 @@ def plot_prediction(preds,traj, ax):
     Xr, Yr, Zr = traj.get_trajectory_position()
     Xm, Ym, Zm = traj.get_measurements()
 
-    
+    plot_planets(Xr, Yr, Zr, ax)
+
     ax.plot(xt,yt,zt, lw=2, label='Kalman Filter Estimate')
     ax.plot(Xr, Yr, Zr, lw=2, label='Real Trajectory Without Noise')
     ax.scatter(Xm, Ym, Zm, edgecolor='g', facecolor='none', alpha=0.1, lw=2, label="Measurements")
@@ -175,10 +201,8 @@ def init_kalman(traj):
 
     P = np.eye(9)*(SIGMA**2)
    
-    rp = 1.0**2  # Noise of Position Measurement
+    rp = 0.001  # Noise of Position Measurement
     R = np.eye(3)* rp
-
-    #acc_noise = (0.1)**2
     
     G = np.array([  [(DT**2)/2],
                     [(DT**2)/2],
@@ -190,9 +214,9 @@ def init_kalman(traj):
                     [    1    ],
                     [    1    ]])
 
-    #Q = Q_discrete_white_noise(2, dt=DT, var=10, block_size=3) 
     acc_noise = 0.1 # acceleration proccess noise
     Q= np.dot(G, G.T)* acc_noise
+    #Q = Q_discrete_white_noise(3, dt=DT, var=10, block_size=3) 
 
     return init_states, PHI, H, Q, P, R
 
@@ -202,7 +226,7 @@ def Ship_tracker(traj):
     
     global DT
 
-    init_states, PHI, H, Q, P,R = init_kalman(traj)
+    init_states, PHI, H, Q, P, R = init_kalman(traj)
     
     tracker= KalmanFilter(dim_x = 9, dim_z=3)
     tracker.x = init_states
@@ -234,7 +258,11 @@ def run(tracker, traj):
     
     return np.array(preds), np.array(cov)
 
-def run_half_measures(tracker, zs):
+def run_half_measures(tracker, traj):
+    
+    x, y, z = traj.get_measurements()
+    
+    zs = np.asarray([ x, y, z]).T
     
     preds, cov = [],[]
     
@@ -243,7 +271,7 @@ def run_half_measures(tracker, zs):
         
         if i  <= len(zs)//2:
             tracker.update(z=z)
-       
+    
         preds.append(tracker.x)
         cov.append(tracker.P)
     
