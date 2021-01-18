@@ -9,7 +9,7 @@ import pandas as pd
 import os
 from IPython.display import Image, display
 
-from model_evaluation_9x9 import plot_covariance_ellipsoide
+from model_evaluation_3D import plot_covariance_ellipsoide
 
 
 from filterpy.kalman import KalmanFilter
