@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import os
 from IPython.display import Image, display
 
-from model_evaluation_3D import plot_covariance_ellipsoide
+#from model_evaluation_3D import plot_covariance_ellipsoide
 
 
 from filterpy.kalman import KalmanFilter
@@ -133,7 +133,7 @@ def plot_measurements_3D(traj, ax, title=""):
     plot_planets(x, y, z, ax)
     
     
-    ax.scatter(x, y, z, c='gray', alpha=0.5, label="Measurements")
+    ax.scatter(x, y, z, c='g', alpha=0.3, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
