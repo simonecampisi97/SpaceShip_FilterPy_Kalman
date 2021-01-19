@@ -5,6 +5,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 import matplotlib.patches as mpatches
 from matplotlib.legend_handler import HandlerPatch, HandlerCircleCollection
 import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
 
 import os
 from IPython.display import Image, display
@@ -373,76 +374,57 @@ class SpaceAnimation3D:
     
     """
     def __init__(self, predictions, traj):
+
+        self.fig =  plt.figure(figsize=(16,13))
+        self.ax = Axes3D(self.fig)
         
-
-        self.predictions= predictions
-
-        self.x_target, self.y_target, self.z_target = traj.get_measurements()  
+        self.x_target, self.y_target, self.z_target = traj.get_measurements()
+        Xr, Yr, Zr = traj.get_trajectory_position()
+      
 
         self.x_pred = predictions[:,0]
         self.y_pred = predictions[:,1]
         self.z_pred = predictions[:,2]
-        self.zs = np.asarray([ self.x_pred, self.y_pred, self.z_pred]).T
-        
-        self.fig =  plt.figure(figsize=(16,13))
-        self.ax = self.fig.add_subplot(1,1,1, projection="3d")
-    
 
-        Xr, Yr, Zr = traj.get_trajectory_position()
+        plot_planets(Xr,Yr,Zr, self.ax)
      
-        e_txt, m_txt = plot_planets(Xr,Yr,Zr, self.ax)
-        e_txt.remove()
-        m_txt.remove()
-        self.ax.text(Xr[0]-3, Yr[0], Zr[0]-4,"Earth", weight='bold', c="b", fontsize=10)
-        self.ax.text(Xr[-1]-4, Yr[-1], Zr[-1]+2,"Moon", weight='bold', c="gray", fontsize=10)
         
-        self.spaceship_pred = None
+        self.spaceship_pred, = self.ax.plot([], [], [], lw=5, c="r", label="Predictions")
+        self.measurements, = self.ax.plot([], [], [], lw=2, alpha=0.6, c="g", label="Measurements")
+        
+        max_range = np.array([self.x_pred.max()-self.x_pred.min(), self.y_pred.max()-self.y_pred.min(), self.z_pred.max()-self.z_pred.min()]).max() / 3.0
+   
+        mean_x = self.x_pred.mean()
+        mean_y = self.y_pred.mean()
+        mean_z = self.z_pred.mean()
+        
+        self.ax.set_xlim3d(mean_x - max_range, mean_x + max_range)
+        self.ax.set_ylim3d(mean_y - max_range, mean_y + max_range)
+        self.ax.set_zlim3d(mean_z - max_range, mean_z + max_range)
 
-        #create a patch for the target
-        """
-        self.patch_width = 4.6
-        self.patch_height = 4.6
-        self.target = plt.Rectangle((0-(self.patch_width/2),0-(self.patch_height/2)), self.patch_width, self.patch_height,
-                                            linewidth=2,edgecolor='green',facecolor='none') 
-        """
+        self.ax.legend(loc='best',prop={'size':15})
     
     def init(self):
         
-        self.spaceship_pred = self.ax.scatter(self.x_pred[0], self.y_pred[0], self.z_pred[0], c='gray', s=250, facecolor='r')
-        #self.target.set_xy( (0,0) )
-        #self.ax.add_patch(self.spaceship_pred)
-        #self.ax.add_patch(self.target)
+        self.spaceship_pred.set_data_3d([])
+        self.measurements.set_data_3d([])
+        return self.spaceship_pred, self.measurements,
 
-       
-        #legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='o')
-        
-        #self.ax.legend([legend_pred],["Prediction"])
-    
-        #self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
-        return self.spaceship_pred,
-
-    
     def animate(self,i):
         
-        #x, y = self.x_pred[i], self.y_pred[i]
-
-        #x_t, y_t = self.x_target[i], self.y_target[i]
-        #self.target_text.remove()
-        #self.target_text =  self.ax.text(x_t-3, y_t+3,"Target", weight='bold', c="green", fontsize=10)
-
-        self.spaceship_pred._offsets3d=(self.predictions[i][0],self.predictions[i][1],self.predictions[i][2])
-        #self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
-        return self.spaceship_pred,
+        self.spaceship_pred.set_data_3d(self.x_pred[:i], self.y_pred[:i],self.z_pred[:i])
+        self.measurements.set_data_3d(self.x_target[:i], self.y_target[:i], self.z_target[:i])
+        
+        return self.spaceship_pred,self.measurements,
     
 
     def save_and_visualize_animation(self, path):
 
-        anim= FuncAnimation(fig=self.fig, func=self.animate, 
-        init_func=self.init, frames=50,interval=50, blit=True)
+        anim= FuncAnimation(fig=self.fig, func=self.animate, init_func=self.init, frames=len(self.x_pred),interval=50, blit=True)
         
     
         writer = PillowWriter(fps=25)  
-        anim.save( path, writer=writer, dpi=100)
+        anim.save( path, writer=writer, dpi=90)
         plt.close()
     
         with open(path,'rb') as f:
