@@ -5,6 +5,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 import matplotlib.patches as mpatches
 from matplotlib.legend_handler import HandlerPatch, HandlerCircleCollection
 import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
 
 import os
 from IPython.display import Image, display
@@ -43,7 +44,7 @@ class Trajectoy3DGenerattion:
         self.py= 0.0 # y Position Start
         self.pz= 1.0 # z Position Start
 
-        self.vx = 100.0  # m/s Velocity at the beginning
+        self.vx = 10.0  # m/s Velocity at the beginning
         self.vy = 0.0 # m/s Velocity
         self.vz = 0.0 # m/s Velocity
 
@@ -57,9 +58,13 @@ class Trajectoy3DGenerattion:
         self.Vy=[]
         self.Vz=[]
         
+        self.ax =[]
+        self.az =[]
+
         for i in range(int(self.m)):
             
-            accx = -c*self.vx**2  # Drag Resistance
+            # Just to simulate a trajectory
+            accx = -c*self.vx**2  
             
             self.vx += accx*self.dt
             self.px += self.vx*self.dt
@@ -75,15 +80,36 @@ class Trajectoy3DGenerattion:
             self.Vx.append(self.vx)
             self.Vy.append(self.vy)
             self.Vz.append(self.vz)
+
+            self.az.append(accz)
+            self.ax.append(accx)
     
-        
+        aux = self.Xr
+        self.Xr = self.Zr
+        self.Zr = aux
+
+        aux = self.Vx
+        self.Vx = self.Vz
+        self.Vz = aux
+
+        aux = self.ax
+        self.ax = self.az
+        self.az = aux
+
+
+    def get_velocities(self):
+        return self.Vx, self.Vy, self.Vz
+
     def get_trajectory_position(self):
         return self.Xr, self.Yr, self.Zr
 
+    def get_acceleration(self):
+        return self.ax, self.az
     
     def get_measurements(self):
 
         #adding Noise
+        np.random.seed(25)
         self.Xm = self.Xr + self.sigma * (np.random.randn(self.m))
         self.Ym = self.Yr + self.sigma * (np.random.randn(self.m))
         self.Zm = self.Zr + self.sigma * (np.random.randn(self.m)) 
@@ -91,17 +117,27 @@ class Trajectoy3DGenerattion:
         return self.Xm, self.Ym, self.Zm
 
 
+def plot_planets(x, y, z, ax):
+    ax.scatter(x[0], y[0], z[0], c='b', s=850, facecolor='b')
+    ax.scatter(x[-1], y[-1], z[-1], c='gray', s=350, facecolor='b')
+    e_txt = ax.text(x[0]-3, y[0], z[0]-8.5,"Earth", weight='bold', c="b", fontsize=10)
+    m_txt = ax.text(x[-1]-4, y[-1], z[-1]+4,"Moon", weight='bold', c="gray", fontsize=10)
+
+    return e_txt, m_txt
+
 
 def plot_measurements_3D(traj, ax, title=""):
     
     x,y,z = traj.get_measurements()
     
+    plot_planets(x, y, z, ax)
     
-    ax.scatter(x, y, z, c='gray')
+    
+    ax.scatter(x, y, z, c='gray', alpha=0.5, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title(title)
+    ax.set_title(title, fontsize=15)
 
     #ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     # Axis equal
@@ -113,8 +149,7 @@ def plot_measurements_3D(traj, ax, title=""):
     ax.set_xlim(mean_x - max_range, mean_x + max_range)
     ax.set_ylim(mean_y - max_range, mean_y + max_range)
     ax.set_zlim(mean_z - max_range, mean_z + max_range)
-
-
+    ax.legend(loc='best',prop={'size':15})
 
 def plot_prediction(preds,traj, ax):
     global SIGMA
@@ -123,14 +158,15 @@ def plot_prediction(preds,traj, ax):
     Xr, Yr, Zr = traj.get_trajectory_position()
     Xm, Ym, Zm = traj.get_measurements()
 
-    
+    plot_planets(Xr, Yr, Zr, ax)
+
     ax.plot(xt,yt,zt, lw=2, label='Kalman Filter Estimate')
     ax.plot(Xr, Yr, Zr, lw=2, label='Real Trajectory Without Noise')
     ax.scatter(Xm, Ym, Zm, edgecolor='g', facecolor='none', alpha=0.1, lw=2, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.legend()
+    ax.legend(loc='best',prop={'size':15})
     ax.set_title("Kalman Filter Estimate - Sigma={}".format(SIGMA), fontsize=15)
 
 
@@ -144,6 +180,24 @@ def plot_prediction(preds,traj, ax):
     ax.set_zlim(mean_z - max_range, mean_z + max_range)
 
 
+
+
+def plot_x_z_2D(ax, traj, preds):
+    
+    global SIGMA
+
+    xt, yt, zt = preds[:,0], preds[:,1], preds[:,2]
+    Xr, Yr, Zr = traj.get_trajectory_position()
+    Xm, Ym, Zm = traj.get_measurements()
+
+    ax.plot(xt,zt, label='Kalman Filter Estimate')
+    ax.scatter(Xm,Zm, label='Measurement', c='gray', s=15, alpha=0.5)
+    ax.plot(Xr, Zr, label='Real')
+    ax.set_title("Kalman Filter Estimate 2D - Sigma={}".format(SIGMA), fontsize=15)
+    ax.legend(loc='best',prop={'size':15})
+
+    ax.set_xlabel('X ($m$)')
+    ax.set_ylabel('Y ($m$)')
 
 #-------------------------- KALMAN FUNCTIONS -------------------------------------------------
 
@@ -169,16 +223,15 @@ def init_kalman(traj):
                   [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
 
     x, y, z = traj.get_measurements()
-
+    vx, vy, vz = traj.get_velocities()
+    ax, az = traj.get_acceleration()
     #initial state
-    init_states = np.array([x[0], y[0], z[0], 100., 0., 0., 0., 0., -9.81])
+    init_states = np.array([x[0], y[0], z[0], vx[0], vy[0], vz[0], ax[0], 0., az[0]])
 
     P = np.eye(9)*(SIGMA**2)
    
-    rp = 1.0**2  # Noise of Position Measurement
+    rp = 1**2  # Noise of Position Measurement
     R = np.eye(3)* rp
-
-    #acc_noise = (0.1)**2
     
     G = np.array([  [(DT**2)/2],
                     [(DT**2)/2],
@@ -186,13 +239,13 @@ def init_kalman(traj):
                     [    DT   ],
                     [    DT   ],
                     [    DT   ],
-                    [    1    ],
-                    [    1    ],
-                    [    1    ]])
+                    [    1.   ],
+                    [    1.   ],
+                    [    1.   ]])
 
-    #Q = Q_discrete_white_noise(2, dt=DT, var=10, block_size=3) 
     acc_noise = 0.1 # acceleration proccess noise
-    Q= np.dot(G, G.T)* acc_noise
+    Q= np.dot(G, G.T)* acc_noise**2
+    #Q = Q_discrete_white_noise(3, dt=DT, var=50, block_size=3) 
 
     return init_states, PHI, H, Q, P, R
 
@@ -202,7 +255,7 @@ def Ship_tracker(traj):
     
     global DT
 
-    init_states, PHI, H, Q, P,R = init_kalman(traj)
+    init_states, PHI, H, Q, P, R = init_kalman(traj)
     
     tracker= KalmanFilter(dim_x = 9, dim_z=3)
     tracker.x = init_states
@@ -219,8 +272,7 @@ def Ship_tracker(traj):
 
 def run(tracker, traj):
     
-    x, y, z = traj.get_measurements()
-    
+    x, y, z = traj.get_measurements() 
     zs = np.asarray([ x, y, z]).T
    
     preds, cov = [],[]
@@ -234,7 +286,10 @@ def run(tracker, traj):
     
     return np.array(preds), np.array(cov)
 
-def run_half_measures(tracker, zs):
+def run_half_measures(tracker, traj):
+    
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
     
     preds, cov = [],[]
     
@@ -243,7 +298,7 @@ def run_half_measures(tracker, zs):
         
         if i  <= len(zs)//2:
             tracker.update(z=z)
-       
+    
         preds.append(tracker.x)
         cov.append(tracker.P)
     
@@ -251,8 +306,11 @@ def run_half_measures(tracker, zs):
 
 
 
-def run_even_index_update(tracker, zs):
+def run_even_index_update(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
+
     preds, cov = [],[]
     
     for i, z in enumerate(zs):
@@ -268,8 +326,10 @@ def run_even_index_update(tracker, zs):
     return np.array(preds), np.array(cov)
 
 
-def run_update_every_5(tracker, zs):
+def run_update_every_5(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
     preds, cov = [],[]
     
     for i, z in enumerate(zs):
@@ -284,8 +344,10 @@ def run_update_every_5(tracker, zs):
     
     return np.array(preds), np.array(cov)
 
-def run_update_hole_in_middle(tracker, zs):
+def run_update_hole_in_middle(tracker, traj):
     
+    x, y, z = traj.get_measurements()
+    zs = np.asarray([ x, y, z]).T
     preds, cov = [],[]
     
     chunk = len(zs) // 3
@@ -302,50 +364,7 @@ def run_update_hole_in_middle(tracker, zs):
 
 
 
-class HandlerEllipse(HandlerPatch):
-    
-    def create_artists(self, legend, orig_handle,
-                       xdescent, ydescent, width, height, fontsize, trans):
-        
-        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
-        
-        p = mpatches.Ellipse(xy=center, width=orig_handle.width,
-                                        height=orig_handle.height)
-        self.update_prop(p, orig_handle, legend)
-        p.set_transform(trans)
-        return [p]
-
-
-def plot_comparison_ellipse_covariance(measurements, preds, cov):
-
-    fig_cov = plt.figure(figsize=(13,10))
-    ax_cov =  fig_cov.add_subplot(1,1,1)
-    ellipse_step = 50
-    
-    plot_planets(measurements, ax_cov)
-    
-    i=0
-    for x, P, x_pos, y_pos in zip(preds, cov, measurements.x_pos, measurements.y_pos):
-        mean, covariance = x[0:2], P[0:2,0:2]
-        if i % ellipse_step == 0:
-            e,_,_,_=plot_covariance_ellipsoide(mean=mean, ax=ax_cov, std=205, cov=covariance, fc='g', alpha=0.3, ls='dashed')
-            scatter = ax_cov.scatter(x_pos, y_pos, edgecolor='k', facecolor='none', lw=2)
-        i+=1
-    
-    ax_cov.plot(preds[:,0], preds[:,1], label='filter', c='b')
-
-    legend_earth = plt.Line2D([0], [0], ls='None', color="blue", marker='o')
-    legend_moon = plt.Line2D([0], [0], ls='None', color="grey", marker='o')
-    legend_pred = plt.Line2D([0], [0], ls='None', color="b", marker='_')
-    legend_ellipse = mpatches.Ellipse((), width=15, height=5, facecolor="g", alpha=0.3, ls='dashed')
-    ax_cov.legend([legend_earth, legend_moon, legend_ellipse,legend_pred, scatter],["Earth","Moon","Ellipse","Kalamn Filter","Measurments"],
-                    handler_map={mpatches.Ellipse: HandlerEllipse()}, loc='best')
-    ax_cov.grid()
-    ax_cov.set_title("Covariance Ellipsoide vs Measurments vs Kalman Filter")
-    fig_cov.savefig(os.path.join("Plots","covariance_ellipsoide.png"), dpi=100)
-    
-
-class SpaceAnimation:
+class SpaceAnimation3D:
     
     """
     :predictions: matrix with the predictions of the states
@@ -354,69 +373,58 @@ class SpaceAnimation:
     :target_y: target y of the position 
     
     """
-    def __init__(self, predictions, measurements):
+    def __init__(self, predictions, traj):
+
+        self.fig =  plt.figure(figsize=(16,13))
+        self.ax = Axes3D(self.fig)
         
-
-        self.predictions= predictions
-
-        self.x_target = measurements.x_pos.to_list()
-        self.y_target = measurements.y_pos.to_list()
+        self.x_target, self.y_target, self.z_target = traj.get_measurements()
+        Xr, Yr, Zr = traj.get_trajectory_position()
+      
 
         self.x_pred = predictions[:,0]
         self.y_pred = predictions[:,1]
+        self.z_pred = predictions[:,2]
 
-        self.fig =  plt.figure(figsize=(13,10))
-        self.ax = self.fig.add_subplot(1,1,1)
-        self.ax.set( xlim=(-9, np.max(self.x_pred)+4), ylim=(-9, np.max(self.y_pred)+4 ) )
+        plot_planets(Xr,Yr,Zr, self.ax)
+     
         
-        plot_planets(measurements, self.ax)
+        self.spaceship_pred, = self.ax.plot([], [], [], lw=5, c="r", label="Predictions")
+        self.measurements, = self.ax.plot([], [], [], lw=2, alpha=0.6, c="g", label="Measurements")
         
-        self.spaceship_pred = plt.Circle((0., 0.), 2, fc='r')
+        max_range = np.array([self.x_pred.max()-self.x_pred.min(), self.y_pred.max()-self.y_pred.min(), self.z_pred.max()-self.z_pred.min()]).max() / 3.0
+   
+        mean_x = self.x_pred.mean()
+        mean_y = self.y_pred.mean()
+        mean_z = self.z_pred.mean()
+        
+        self.ax.set_xlim3d(mean_x - max_range, mean_x + max_range)
+        self.ax.set_ylim3d(mean_y - max_range, mean_y + max_range)
+        self.ax.set_zlim3d(mean_z - max_range, mean_z + max_range)
 
-        #create a patch for the target
-        self.patch_width = 4.6
-        self.patch_height = 4.6
-        self.target = plt.Rectangle((0-(self.patch_width/2),0-(self.patch_height/2)), self.patch_width, self.patch_height,
-                                            linewidth=2,edgecolor='green',facecolor='none') 
-       
+        self.ax.legend(loc='best',prop={'size':15})
     
     def init(self):
         
-        self.spaceship_pred.center = (0 - (self.patch_width/2), 0 - (self.patch_height/2) )
-        self.target.set_xy( (0,0) )
-        self.ax.add_patch(self.spaceship_pred)
-        self.ax.add_patch(self.target)
+        self.spaceship_pred.set_data_3d([])
+        self.measurements.set_data_3d([])
+        return self.spaceship_pred, self.measurements,
 
-       
-        legend_pred = plt.Line2D([0], [0], ls='None', color="red", marker='o')
-        
-        self.ax.legend([legend_pred],["Prediction"])
-    
-        self.target_text =  self.ax.text(-2, 2,"", weight='bold', c="green", fontsize=10)
-        return self.spaceship_pred, self.target,
-
-    
     def animate(self,i):
         
-        x, y = self.x_pred[i], self.y_pred[i]
-
-        x_t, y_t = self.x_target[i], self.y_target[i]
-        self.target_text.remove()
-        self.target_text =  self.ax.text(x_t-3, y_t+3,"Target", weight='bold', c="green", fontsize=10)
-
-        self.spaceship_pred.center=(x,y)
-        self.target.set_xy( (x_t - self.patch_width/2, y_t - self.patch_height/2) )
-        return self.spaceship_pred, self.target,
+        self.spaceship_pred.set_data_3d(self.x_pred[:i], self.y_pred[:i],self.z_pred[:i])
+        self.measurements.set_data_3d(self.x_target[:i], self.y_target[:i], self.z_target[:i])
+        
+        return self.spaceship_pred,self.measurements,
     
 
     def save_and_visualize_animation(self, path):
 
-        anim= FuncAnimation(fig=self.fig, func=self.animate, 
-        init_func=self.init,frames=len(self.x_target),interval=50, blit=True)
+        anim= FuncAnimation(fig=self.fig, func=self.animate, init_func=self.init, frames=len(self.x_pred),interval=50, blit=True)
         
     
         writer = PillowWriter(fps=25)  
-        anim.save( path, writer=writer, dpi=100)
+        anim.save( path, writer=writer, dpi=90)
         plt.close()
     
         with open(path,'rb') as f:
