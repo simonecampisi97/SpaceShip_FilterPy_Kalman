@@ -1,11 +1,13 @@
 # Traking SpaceShip - FilterPy_Kalman
 
+## 1 - Introduction
 
+### 1.1 - Kalman Filter - Overview
 
+ $$
+ \textbf{Kalman filtering} is an algorithm that takes a series of measurements over time, containing statistical noise, and produce an estimate that tends to be more accurate than a single measurement. This is very important, because the the sensors give us always noisy information or the environment could makes data collection difficult, and the predictions made using kalman filtering help or make a better estimate.  There are many applications of the kalman filtering, and in this case, it was used to track a spaceship in a simulated trip from the Earth to the Moon.
+$$
 
-$ \section{Introduction} $
-
-\subsection{Kalman Filter - Overview}
 
  \textbf{Kalman filtering} is an algorithm that takes a series of measurements over time, containing statistical noise, and produce an estimate that tends to be more accurate than a single measurement. This is very important, because the the sensors give us always noisy information or the environment could makes data collection difficult, and the predictions made using kalman filtering help or make a better estimate.  There are many applications of the kalman filtering, and in this case, it was used to track a spaceship in a simulated trip from the Earth to the Moon.
 
