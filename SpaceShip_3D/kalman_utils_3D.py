@@ -256,7 +256,7 @@ def init_kalman(traj):
 
     P = np.eye(9)*(SIGMA**2)
    
-    rp = 1**2  # Noise of Position Measurement
+    rp = 1  # Noise of Position Measurement
     R = np.eye(3)* rp
     
     G = np.array([  [(DT**2)/2],

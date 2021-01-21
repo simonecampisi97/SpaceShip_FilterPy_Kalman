@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_residuals(traj, col, cov, preds, kind_of_residual="", stds=1.0):
+def plot_residuals(traj, col, preds, kind_of_residual=""):
     
     Zx, Zy, Zz = traj.get_measurements()
     z = np.asarray([ Zx, Zy, Zz]).T
