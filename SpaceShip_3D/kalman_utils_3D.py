@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import os
 from IPython.display import Image, display
 
-from model_evaluation_3D import plot_covariance_ellipsoide
+#from model_evaluation_3D import plot_covariance_ellipsoide
 
 
 from filterpy.kalman import KalmanFilter
@@ -101,7 +101,7 @@ class Trajectoy3DGenerattion:
         return self.Vx, self.Vy, self.Vz
 
     def get_trajectory_position(self):
-        return self.Xr, self.Yr, self.Zr
+        return np.array(self.Xr), np.array(self.Yr), np.array(self.Zr)
 
     def get_acceleration(self):
         return self.ax, self.az
@@ -120,7 +120,7 @@ class Trajectoy3DGenerattion:
 def plot_planets(x, y, z, ax):
     ax.scatter(x[0], y[0], z[0], c='b', s=850, facecolor='b')
     ax.scatter(x[-1], y[-1], z[-1], c='gray', s=350, facecolor='b')
-    e_txt = ax.text(x[0]-3, y[0], z[0]-8.5,"Earth", weight='bold', c="b", fontsize=10)
+    e_txt = ax.text(x[0]-3, y[0], z[0]-10.5,"Earth", weight='bold', c="b", fontsize=10)
     m_txt = ax.text(x[-1]-4, y[-1], z[-1]+4,"Moon", weight='bold', c="gray", fontsize=10)
 
     return e_txt, m_txt
@@ -133,7 +133,33 @@ def plot_measurements_3D(traj, ax, title=""):
     plot_planets(x, y, z, ax)
     
     
-    ax.scatter(x, y, z, c='gray', alpha=0.5, label="Measurements")
+    ax.scatter(x, y, z, c='g', alpha=0.3, label="Measurements")
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title(title, fontsize=15)
+
+    #ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
+    # Axis equal
+    max_range = np.array([x.max()-x.min(), y.max()-y.min(), z.max()-z.min()]).max() / 3.0
+   
+    mean_x = x.mean()
+    mean_y = y.mean()
+    mean_z = z.mean()
+    ax.set_xlim(mean_x - max_range, mean_x + max_range)
+    ax.set_ylim(mean_y - max_range, mean_y + max_range)
+    ax.set_zlim(mean_z - max_range, mean_z + max_range)
+    ax.legend(loc='best',prop={'size':15})
+
+    
+def plot_trajectory_3D(traj, ax, title=""):
+    
+    x,y,z = traj.get_trajectory_position()
+    
+    plot_planets(x, y, z, ax)
+    
+    
+    ax.plot(x, y, z, c='r', lw=2, ls="--", label="Trajectory")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -230,7 +256,7 @@ def init_kalman(traj):
 
     P = np.eye(9)*(SIGMA**2)
    
-    rp = 1**2  # Noise of Position Measurement
+    rp = 1  # Noise of Position Measurement
     R = np.eye(3)* rp
     
     G = np.array([  [(DT**2)/2],
