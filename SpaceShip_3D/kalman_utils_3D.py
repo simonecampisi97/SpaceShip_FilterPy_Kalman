@@ -34,7 +34,7 @@ class Trajectoy3DGenerattion:
         
         # Set Global Variables
         DT = self.dt
-        SIGMA = 0.5
+        SIGMA = sigma 
         
         self.T =  T # measuremnt time
         self.m = int(self.T/self.dt) # number of measurements
@@ -178,23 +178,28 @@ def plot_trajectory_3D(traj, ax, title=""):
     ax.legend(loc='best',prop={'size':15})
 
 def plot_prediction(preds,traj, ax):
+    
     global SIGMA
 
     xt, yt, zt = preds[:,0], preds[:,1], preds[:,2]
     Xr, Yr, Zr = traj.get_trajectory_position()
     Xm, Ym, Zm = traj.get_measurements()
+    
+    print("Xm: ", Xm.shape)
+    print("Ym: ", Ym.shape)
+    print("Zm: ", Zm.shape)
 
     plot_planets(Xr, Yr, Zr, ax)
 
     ax.plot(xt,yt,zt, lw=2, label='Kalman Filter Estimate')
     ax.plot(Xr, Yr, Zr, lw=2, label='Real Trajectory Without Noise')
-    ax.scatter(Xm, Ym, Zm, edgecolor='g', facecolor='none', alpha=0.1, lw=2, label="Measurements")
+    
+    ax.scatter(Xm, Ym, Zm, edgecolor='g', alpha=0.1, lw=2, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.legend(loc='best',prop={'size':15})
     ax.set_title("Kalman Filter Estimate - Sigma={}".format(SIGMA), fontsize=15)
-
 
     # Axis equal
     max_range = np.array([Xm.max()-Xm.min(), Ym.max()-Ym.min(), Zm.max()-Zm.min()]).max() / 3.0
@@ -254,7 +259,7 @@ def init_kalman(traj):
     #initial state
     init_states = np.array([x[0], y[0], z[0], vx[0], vy[0], vz[0], ax[0], 0., az[0]])
 
-    P = np.eye(9)*(SIGMA**2)
+    P = np.eye(9)*(0.5**2)
    
     rp = 1  # Noise of Position Measurement
     R = np.eye(3)* rp
