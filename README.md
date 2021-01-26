@@ -6,10 +6,10 @@ The trajectory from the Earth to the Moon is a simply "toy" trajectory generated
 
 <div class="row" style= "display: table; clear: both; content: ''; ">
   <div class="column">
-    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate_2D___Sigma_0.5.png" width="50%" style="float: left;"></img>
+    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate_2D___Sigma_0.5.png" width="45%" style="float: left;"></img>
   </div>
   <div class="column">
-    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate___Sigma_0.5.png"width="50%" style="float: left;" ></img>
+    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate___Sigma_0.5.png"width="45%" style="float: left;" ></img>
   </div>
 </div>
 
