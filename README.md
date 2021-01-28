@@ -4,14 +4,6 @@
 
 The trajectory from the Earth to the Moon is a simply "toy" trajectory generated synthetically. Has been generated all the coordinates, velocty and acceleration for a moving object in 3 dimentional space. Then has been added noise with a Gaussian distribuition, in order to simulate a more realistic sensor that provides measurements. This is the trajectory plotted in 3D and in 2D (only x and z axis):
 
-<div class="row" style= "display: table;">
-  <div class="column">
-    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate_2D___Sigma_0.5.png" width="50%" style="float: left;"></img>
-  </div>
-  <div class="column">
-    <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate___Sigma_0.5.png"width="50%" style="float: left;" ></img>
-  </div>
-</div>
 
 
 Kalman Prediction 2D      |  Kalman Prediction 3D 
