@@ -14,11 +14,9 @@ The trajectory from the Earth to the Moon is a simply "toy" trajectory generated
 </div>
 
 
-<p float="left">
-  <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate_2D___Sigma_0.5.png" width="50%" style="float: left;"></img>
-  <img src="SpaceShip_3D\Plots\Kalman_Filter_Estimate___Sigma_0.5.png"width="50%" style="float: left;" ></img>
-</p>
-
+Solarized dark             |  Solarized Ocean
+:-------------------------:|:-------------------------:
+![](SpaceShip_3D\Plots\Kalman_Filter_Estimate_2D___Sigma_0.5.png)  |  ![](SpaceShip_3D\Plots\Kalman_Filter_Estimate___Sigma_0.5.png)
 
 The Kalman algorithm is the one implemented in the <a  href="https://filterpy.readthedocs.io/en/latest/"> FilterPy module</a>, and all the implementation choices are described in the <a href="https://github.com/simocampi/Project-SpaceShip_FilterPy_Kalman/blob/master/REPORT.pdf"> report </a>
 
