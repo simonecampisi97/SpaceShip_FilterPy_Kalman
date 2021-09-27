@@ -133,7 +133,7 @@ def plot_measurements_3D(traj, ax, title=""):
     plot_planets(x, y, z, ax)
     
     
-    ax.scatter(x, y, z, c='g', alpha=0.3, label="Measurements")
+    ax.scatter(x, y, z, c='g', alpha=0.3, facecolor=None, label="Measurements")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
